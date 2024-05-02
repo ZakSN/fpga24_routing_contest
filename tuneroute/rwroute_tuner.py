@@ -22,8 +22,8 @@ class RWRouteTuner(MeasurementInterface):
 		return manipulator
 
 	def compile(self, cfg, id):
-		infra = os.path.join('..','fpga24_routing_contest')
-		logdir  = os.path.join('..','opentuner','tuneroute_logs')
+		infra = os.path.join('..')
+		logdir  = os.path.join('tuneroute','tuneroute_logs')
 		cfg_vals = [str(x) for x in [cfg['ww'], cfg['ipcf'], cfg['pcm'], cfg['hcf']]]
 		cfg_args = ' '.join(cfg_vals)
 		cfg_txt =  '_'.join(cfg_vals)
