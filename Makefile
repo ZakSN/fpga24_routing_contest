@@ -166,6 +166,11 @@ distclean: clean
 # %_exampleroute.phys: %_unrouted.phys
 # 	(/usr/bin/time <custom router here> $< $@) $(call log_and_or_display,$@.log)
 
+## TUNEROUTE
+%_tuneroute.phys: %_unrouted.phys | $(JAVA_CLASSPATH_TXT)
+	(/usr/bin/time java -cp $$(cat $(JAVA_CLASSPATH_TXT)) $(JVM_HEAP) com.xilinx.fpga24_routing_contest.TuneRouterPhysNetlist \
+	$< $@ $(WW) $(IPCF) $(PCM) $(HCF)) $(call log_and_or_display,$@.log)
+
 #### END ROUTER RECIPES
 
 #### BEGIN CONTEST SUBMISSION RECIPES
