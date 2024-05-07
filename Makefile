@@ -74,6 +74,7 @@ setup-benchmarks: $(addsuffix _unrouted.phys,$(BENCHMARKS)) $(addsuffix .netlist
 
 .PHONY: compile-java
 .PHONY: install-python-deps
+JAVA_CLASSPATH_TXT = java-classpath.txt
 ifneq ($(APPTAINER_NETWORK),none)
 
 # Use Gradle to compile Java source code in this repository as well as the RapidWright repository.
@@ -83,15 +84,13 @@ compile-java:
 	_JAVA_OPTIONS="$(JAVA_PROXY)" RapidWright/bin/rapidwright Jython -c "FileTools.ensureDataFilesAreStaticInstallFriendly('xcvu3p')"
 install-python-deps:
 	pip install -q -r requirements.txt --pre --user
-else
-compile-java install-python-deps:
-	@echo "$@ target skipped since network disabled inside apptainer"
-endif
-
-JAVA_CLASSPATH_TXT = java-classpath.txt
 .INTERMEDIATE: $(JAVA_CLASSPATH_TXT)
 $(JAVA_CLASSPATH_TXT): compile-java
 	echo "$$(./gradlew -quiet --offline runtimeClasspath):build/classes/java/main" > $@
+else
+compile-java install-python-deps $(JAVA_CLASSPATH_TXT):
+	@echo "$@ target skipped since network disabled inside apptainer"
+endif
 
 # Download and unpack all benchmarks
 .PHONY: download-benchmarks
@@ -167,6 +166,11 @@ distclean: clean
 # 	(/usr/bin/time <custom router here> $< $@) $(call log_and_or_display,$@.log)
 
 ## TUNEROUTE
+TUNEROUTE_OUTPUTS = tuneroute/tuneroute_logs/
+%_tuneroute_$(WW)_$(IPCF)_$(PCM)_$(HCF).phys: %_unrouted.phys | $(JAVA_CLASSPATH_TXT)
+	(/usr/bin/time java -cp $$(cat $(JAVA_CLASSPATH_TXT)) $(JVM_HEAP) com.xilinx.fpga24_routing_contest.TuneRouterPhysNetlist \
+	$< $(TUNEROUTE_OUTPUTS)$@ $(WW) $(IPCF) $(PCM) $(HCF)) $(call log_and_or_display,$(TUNEROUTE_OUTPUTS)$@.log)
+
 %_tuneroute.phys: %_unrouted.phys | $(JAVA_CLASSPATH_TXT)
 	(/usr/bin/time java -cp $$(cat $(JAVA_CLASSPATH_TXT)) $(JVM_HEAP) com.xilinx.fpga24_routing_contest.TuneRouterPhysNetlist \
 	$< $@ $(WW) $(IPCF) $(PCM) $(HCF)) $(call log_and_or_display,$@.log)

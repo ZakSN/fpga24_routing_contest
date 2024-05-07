@@ -12,35 +12,49 @@ class RWRouteTuner(MeasurementInterface):
 			for line in lf:
 				if "Nodes popped:" in line:
 					return float(line.split()[-1])
+		return float('inf') # TODO fix this
 
 	def manipulator(self):
 		manipulator = ConfigurationManipulator()
-		manipulator.add_parameter(FloatParameter('ww', 0, 1))
-		manipulator.add_parameter(FloatParameter('ipcf', 0.1, 10.0))
-		manipulator.add_parameter(FloatParameter('pcm', 1, 10.0))
-		manipulator.add_parameter(FloatParameter('hcf', 0.1, 10.0))
+
+		#manipulator.add_parameter(FloatParameter('ww', 0, 1))
+		#manipulator.add_parameter(FloatParameter('ipcf', 0.1, 10.0))
+		#manipulator.add_parameter(FloatParameter('pcm', 1, 10.0))
+		#manipulator.add_parameter(FloatParameter('hcf', 0.1, 10.0))
+
+		lower = 0.75
+		upper = 1.25
+		manipulator.add_parameter(FloatParameter('ww', lower*0.8, upper*0.8))
+		manipulator.add_parameter(FloatParameter('ipcf', lower*0.5, upper*0.5))
+		manipulator.add_parameter(FloatParameter('pcm', lower*2, upper*2))
+		manipulator.add_parameter(FloatParameter('hcf', lower*1, upper*1))
 		return manipulator
 
 	def compile(self, cfg, id):
-		infra = os.path.join('..')
-		logdir  = os.path.join('tuneroute','tuneroute_logs')
-		cfg_vals = [str(x) for x in [cfg['ww'], cfg['ipcf'], cfg['pcm'], cfg['hcf']]]
-		cfg_args = ' '.join(cfg_vals)
-		cfg_txt =  '_'.join(cfg_vals)
-		logfiles = []
-		for bmark in ['logicnets_jscl', 'vtr_mcml']:
-			routed = os.path.join(logdir, bmark+"_tuneroute_"+cfg_txt+".phys")
-			logfile = os.path.join(logdir, bmark+"_tuneroute_"+cfg_txt+".phys.log")
-			rwroute_cmd = "cd "+infra+" && \
-				       /usr/bin/time java -cp `cat java-classpath.txt` \
-				       com.xilinx.fpga24_routing_contest.TuneRouterPhysNetlist \
-				       "+bmark+"_unrouted.phys \
-				       "+routed+" \
-				       "+cfg_args+" \
-				       > "+logfile
-			out=self.call_program(rwroute_cmd)
-			print(out)
-			logfiles.append(logfile)
+		bmarks = ["logicnets_jscl",
+		          "boom_med_pb",
+			  "vtr_mcml",
+			  "rosetta_fd",
+			  "corundum_25g",
+			  "finn_radioml"]
+
+		cfg_txt = '_'.join([str(x) for x in [cfg['ww'], cfg['ipcf'], cfg['pcm'], cfg['hcf']]])
+
+		logdir  = os.path.join('tuneroute_logs')
+		logfiles = [os.path.join(logdir, bmark+"_tuneroute_"+cfg_txt+".phys.log") for bmark in bmarks]
+
+		rwroute_cmd = ["make", "-j8",
+		               "APPTAINER_NETWORK=none",
+			       "ROUTER=tuneroute_"+cfg_txt,
+			       "BENCHMARKS="+' '.join(bmarks),
+			       "WW="+str(cfg['ww']),
+			       "IPCF="+str(cfg['ipcf']),
+			       "PCM="+str(cfg['pcm']),
+			       "HCF="+str(cfg['hcf'])]
+
+		print(' '.join(rwroute_cmd))
+		out=self.call_program(rwroute_cmd, cwd='..', limit=6000)
+		print(out)
 		return logfiles
 
 	def run_precompiled(self, desired_resutl, input, limit, compile_result, id):
